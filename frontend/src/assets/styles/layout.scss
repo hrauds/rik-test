@@ -1,0 +1,39 @@
+.app-header {
+  background-color: $white;
+  box-shadow: $gray-700;
+
+  .navbar-brand {
+    font-weight: 700;
+    color: $primary;
+    font-size: 1.5rem;
+  }
+
+  .nav-link {
+    font-weight: 500;
+    color: $gray-700;
+
+    &.active, &:hover {
+      color: $primary;
+    }
+  }
+}
+
+.main-content {
+  padding: 2rem 0;
+  min-height: calc(100vh - 160px);
+}
+
+.app-footer {
+  background-color: $secondary;
+  color: $white;
+  padding: 2rem 0;
+
+  a {
+    color: $light;
+
+    &:hover {
+      color: $white;
+    }
+  }
+
+}
