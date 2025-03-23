@@ -18,10 +18,10 @@ const routes = [
     component: () => import('../views/CompanyRegistrationView.vue')
   },
   {
-    path: '/search',
-    name: 'search',
-    component: () => import('../views/CompanySearchView.vue')
-  }
+    path: '/company/:id/capital',
+    name: 'capital-increase',
+    component: () => import('../views/CapitalIncreaseView.vue')
+  },
 ]
 
 const router = createRouter({

@@ -30,9 +30,7 @@ export default {
     return {
       navItems: [
         {title: 'Avaleht', path: '/'},
-        {title: 'Minu osaühingud', path: '/company/my'},
-        {title: 'Osaühingu registreerimine', path: '/register'},
-        {title: 'Osaühingute otsing', path: '/search'}
+        {title: 'Osaühingu asutamine', path: '/register'}
       ]
     }
   }
