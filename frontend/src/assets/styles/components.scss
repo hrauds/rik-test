@@ -1,0 +1,19 @@
+.card {
+  margin-bottom: 1rem;
+
+  .card-header {
+    background-color: $light;
+  }
+}
+
+.form-label {
+  font-weight: 500;
+}
+
+.table {
+  background-color: $white;
+
+  &.table-hover tbody tr:hover {
+    background-color: rgba($primary, 0.05);
+  }
+}
