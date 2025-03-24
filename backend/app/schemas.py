@@ -16,21 +16,29 @@ class PersonBase(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     id_code: Optional[str] = None
-    legal_name: Optional[str] = None
-    legal_code: Optional[str] = None
+    name: Optional[str] = None
+    reg_code: Optional[str] = None
 
-    @validator('first_name', 'last_name')
+    @validator('first_name', 'last_name', 'id_code')
     def validate_individual_fields(cls, v, values):
         if 'type' in values and values['type'] == PersonType.INDIVIDUAL:
-            if v is None and ('first_name' not in values or 'last_name' not in values):
-                raise ValueError('Individual persons must have first_name and last_name')
+            if v is None and values.get('type') == PersonType.INDIVIDUAL:
+                field_name = next(
+                    (name for name, value in values.items() if value is v),
+                    "this field"
+                )
+                raise ValueError(f'Individual persons must have {field_name}')
         return v
 
-    @validator('legal_name', 'legal_code')
+    @validator('name', 'reg_code')
     def validate_legal_fields(cls, v, values):
         if 'type' in values and values['type'] == PersonType.LEGAL:
-            if v is None and ('legal_name' not in values or 'legal_code' not in values):
-                raise ValueError('Legal persons must have legal_name and legal_code')
+            if v is None and values.get('type') == PersonType.LEGAL:
+                field_name = next(
+                    (name for name, value in values.items() if value is v),
+                    "this field"
+                )
+                raise ValueError(f'Legal persons must have {field_name}')
         return v
 
 
@@ -41,11 +49,10 @@ class CompanyBase(BaseModel):
     capital: Decimal
 
 
-class ShareholderBase(BaseModel):
+class ShareholdingBase(BaseModel):
     company_id: int
     person_id: int
     share: Decimal
-    is_founder: bool = False
 
 
 # Create models - used for creating new entities
@@ -57,7 +64,7 @@ class CompanyCreate(CompanyBase):
     pass
 
 
-class ShareholderCreate(ShareholderBase):
+class ShareholdingCreate(ShareholdingBase):
     pass
 
 
@@ -80,7 +87,7 @@ class Company(CompanyBase):
         orm_mode = True
 
 
-class Shareholder(ShareholderBase):
+class Shareholding(ShareholdingBase):
     id: int
     created_at: datetime
     updated_at: datetime
@@ -89,8 +96,7 @@ class Shareholder(ShareholderBase):
         orm_mode = True
 
 
-# Response models with relationships
-class ShareholderWithDetails(Shareholder):
+class ShareholdingWithDetails(Shareholding):
     company: Company
     person: Person
 
@@ -99,14 +105,21 @@ class ShareholderWithDetails(Shareholder):
 
 
 class CompanyWithShareholders(Company):
-    shareholders: List[Shareholder] = []
+    shareholders: List["PersonWithShare"] = []
+
+    class Config:
+        orm_mode = True
+
+
+class PersonWithShare(Person):
+    share: Optional[Decimal] = None
 
     class Config:
         orm_mode = True
 
 
 class PersonWithShareholdings(Person):
-    shareholdings: List[Shareholder] = []
+    shareholdings: List[Shareholding] = []
 
     class Config:
         orm_mode = True
