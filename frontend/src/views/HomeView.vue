@@ -96,6 +96,7 @@
 
 <script>
 import MainLayout from '../components/layout/MainLayout.vue'
+import axios from 'axios';
 
 export default {
   name: 'HomeView',
@@ -115,16 +116,15 @@ export default {
   },
   mounted() {
     const apiBaseUrl = process.env.VUE_APP_API_URL || '';
-    fetch(`${apiBaseUrl}/api/companies`)
-      .then((resp) => resp.json())
-      .then((data) => {
-        this.allCompanies = data
+
+    axios.get(`${apiBaseUrl}/api/companies`)
+      .then(response => {
+        this.allCompanies = response.data
       })
-      .catch((err) => {
-        console.error('Fetch error:', err)
+      .catch(error => {
+        console.error('Error fetching companies:', error)
         this.error = 'Andmete laadimisel ilmnes viga.'
       })
-
   },
   methods: {
     getPlaceholder() {
