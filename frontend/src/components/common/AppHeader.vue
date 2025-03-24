@@ -29,7 +29,6 @@ export default {
   data() {
     return {
       navItems: [
-        {title: 'Avaleht', path: '/'},
         {title: 'Osaühingu asutamine', path: '/register'}
       ]
     }

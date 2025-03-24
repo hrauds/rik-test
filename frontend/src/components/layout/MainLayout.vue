@@ -10,7 +10,7 @@
       <div class="container">
         <div class="row">
           <div class="col-md-6">
-            <p>&copy; {{ currentYear }} Osaühingute Register</p>
+            <p>&copy; {{ currentYear }} Osaühingute register</p>
           </div>
           <div class="col-md-6 text-md-end">
             <p>Kõik õigused kaitstud</p>
