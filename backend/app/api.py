@@ -65,3 +65,64 @@ def delete_person(person_id: int, db: Session = Depends(get_db)):
     db.delete(db_person)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/companies/", response_model=schemas.Company, status_code=status.HTTP_201_CREATED)
+def create_company(company: schemas.CompanyCreate, db: Session = Depends(get_db)):
+    db_company = models.Company(**company.dict())
+    db.add(db_company)
+    db.commit()
+    db.refresh(db_company)
+    return db_company
+
+
+@router.get("/companies/", response_model=List[schemas.Company])
+def list_companies(
+        skip: int = 0,
+        limit: int = 100,
+        name: Optional[str] = None,
+        founded_after: Optional[date] = None,
+        db: Session = Depends(get_db)
+):
+    query = db.query(models.Company)
+
+    if name:
+        query = query.filter(models.Company.name.ilike(f"%{name}%"))
+    if founded_after:
+        query = query.filter(models.Company.founding_date >= founded_after)
+
+    companies = query.offset(skip).limit(limit).all()
+    return companies
+
+
+@router.get("/companies/{company_id}", response_model=schemas.CompanyWithShareholders)
+def get_company(company_id: int, db: Session = Depends(get_db)):
+    db_company = db.query(models.Company).filter(models.Company.id == company_id).first()
+    if db_company is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company not found")
+    return db_company
+
+
+@router.put("/companies/{company_id}", response_model=schemas.Company)
+def update_company(company_id: int, company: schemas.CompanyCreate, db: Session = Depends(get_db)):
+    db_company = db.query(models.Company).filter(models.Company.id == company_id).first()
+    if db_company is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company not found")
+
+    for key, value in company.dict().items():
+        setattr(db_company, key, value)
+
+    db.commit()
+    db.refresh(db_company)
+    return db_company
+
+
+@router.delete("/companies/{company_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_company(company_id: int, db: Session = Depends(get_db)):
+    db_company = db.query(models.Company).filter(models.Company.id == company_id).first()
+    if db_company is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company not found")
+
+    db.delete(db_company)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
