@@ -126,3 +126,11 @@ def delete_company(company_id: int, db: Session = Depends(get_db)):
     db.delete(db_company)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+@router.post("/shareholders/", response_model=schemas.Shareholder, status_code=status.HTTP_201_CREATED)
+def create_shareholder(shareholder: schemas.ShareholderCreate, db: Session = Depends(get_db)):
+    db_shareholder = models.Shareholder(**shareholder.dict())
+    db.add(db_shareholder)
+    db.commit()
+    db.refresh(db_shareholder)
+    return db_shareholder
