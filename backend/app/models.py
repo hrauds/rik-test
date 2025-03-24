@@ -1,14 +1,15 @@
-from sqlalchemy import Column, String, Integer, Date, Numeric, Boolean, ForeignKey, Enum, func, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Date, DateTime, ForeignKey, Enum, Numeric, Boolean, Table
+from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql.sqltypes import TIMESTAMP
 import enum
+from datetime import datetime
 
-from app.database import Base
+Base = declarative_base()
 
 
-class PersonType(str, enum.Enum):
-    INDIVIDUAL = "individual"
-    LEGAL = "legal"
+class PersonType(enum.Enum):
+    individual = "individual"
+    legal = "legal"
 
 
 class Person(Base):
@@ -17,52 +18,44 @@ class Person(Base):
     id = Column(Integer, primary_key=True, index=True)
     type = Column(Enum(PersonType), nullable=False)
 
-    first_name = Column(String(100), nullable=True)
-    last_name = Column(String(100), nullable=True)
-    id_code = Column(String(20), nullable=True, index=True)
+    first_name = Column(String, nullable=True)
+    last_name = Column(String, nullable=True)
+    id_code = Column(String, nullable=True, index=True)
 
-    legal_name = Column(String(200), nullable=True)
-    legal_code = Column(String(20), nullable=True, index=True)
+    name = Column(String, nullable=True)
+    reg_code = Column(String, nullable=True, index=True)
 
-    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    shareholdings = relationship("Shareholder", back_populates="person", cascade="all, delete-orphan")
-
-    __table_args__ = (
-        UniqueConstraint('id_code', name='uq_person_id_code'),
-        UniqueConstraint('legal_code', name='uq_person_legal_code'),
-    )
+    shareholdings = relationship("Shareholding", back_populates="person")
 
 
 class Company(Base):
     __tablename__ = "companies"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(100), nullable=False)
-    reg_code = Column(String(7), nullable=False, unique=True, index=True)
+    name = Column(String, nullable=False)
+    reg_code = Column(String(7), nullable=False, index=True, unique=True)
     founding_date = Column(Date, nullable=False)
-    capital = Column(Numeric(precision=12, scale=2), nullable=False)
-    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    capital = Column(Numeric(precision=10, scale=2), nullable=False)
 
-    shareholders = relationship("Shareholder", back_populates="company", cascade="all, delete-orphan")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    shareholdings = relationship("Shareholding", back_populates="company")
 
 
-class Shareholder(Base):
-    __tablename__ = "shareholders"
+class Shareholding(Base):
+    __tablename__ = "shareholdings"
 
     id = Column(Integer, primary_key=True, index=True)
     company_id = Column(Integer, ForeignKey("companies.id", ondelete="CASCADE"), nullable=False)
     person_id = Column(Integer, ForeignKey("persons.id", ondelete="CASCADE"), nullable=False)
-    share = Column(Numeric(precision=12, scale=2), nullable=False)
-    is_founder = Column(Boolean, default=False, nullable=False)
-    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    share = Column(Numeric(precision=10, scale=2), nullable=False)
 
-    company = relationship("Company", back_populates="shareholders")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    company = relationship("Company", back_populates="shareholdings")
     person = relationship("Person", back_populates="shareholdings")
-
-    __table_args__ = (
-        UniqueConstraint('company_id', 'person_id', name='uq_shareholder_company_person'),
-    )
