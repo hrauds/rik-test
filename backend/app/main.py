@@ -31,7 +31,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(router, prefix="/api/v1")
+app.include_router(router, prefix="/api")
 
 @app.get("/")
 def read_root():
@@ -39,7 +39,7 @@ def read_root():
         "message": "Welcome to Company Registration API",
         "version": "1.0.0",
         "documentation": "/docs",
-        "api_prefix": "/api/v1"
+        "api_prefix": "/api"
     }
 
 @app.get("/health")
