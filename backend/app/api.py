@@ -1,3 +1,5 @@
+from datetime import date
+
 from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -127,10 +129,79 @@ def delete_company(company_id: int, db: Session = Depends(get_db)):
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
-@router.post("/shareholders/", response_model=schemas.Shareholder, status_code=status.HTTP_201_CREATED)
-def create_shareholder(shareholder: schemas.ShareholderCreate, db: Session = Depends(get_db)):
-    db_shareholder = models.Shareholder(**shareholder.dict())
-    db.add(db_shareholder)
+
+@router.post("/shareholdings/", response_model=schemas.Shareholding, status_code=status.HTTP_201_CREATED)
+def create_shareholding(shareholding: schemas.ShareholdingCreate, db: Session = Depends(get_db)):
+    company = db.query(models.Company).filter(models.Company.id == shareholding.company_id).first()
+    if not company:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company not found")
+
+    person = db.query(models.Person).filter(models.Person.id == shareholding.person_id).first()
+    if not person:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Person not found")
+
+    db_shareholding = models.Shareholding(**shareholding.dict())
+    db.add(db_shareholding)
     db.commit()
-    db.refresh(db_shareholder)
-    return db_shareholder
+    db.refresh(db_shareholding)
+    return db_shareholding
+
+
+@router.get("/shareholdings/", response_model=List[schemas.Shareholding])
+def list_shareholdings(
+        skip: int = 0,
+        limit: int = 100,
+        company_id: Optional[int] = None,
+        person_id: Optional[int] = None,
+        db: Session = Depends(get_db)
+):
+    query = db.query(models.Shareholding)
+
+    if company_id:
+        query = query.filter(models.Shareholding.company_id == company_id)
+    if person_id:
+        query = query.filter(models.Shareholding.person_id == person_id)
+
+    shareholdings = query.offset(skip).limit(limit).all()
+    return shareholdings
+
+
+@router.get("/shareholdings/{shareholding_id}", response_model=schemas.ShareholdingWithDetails)
+def get_shareholding(shareholding_id: int, db: Session = Depends(get_db)):
+    db_shareholding = db.query(models.Shareholding).filter(models.Shareholding.id == shareholding_id).first()
+    if db_shareholding is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Shareholding not found")
+    return db_shareholding
+
+
+@router.put("/shareholdings/{shareholding_id}", response_model=schemas.Shareholding)
+def update_shareholding(shareholding_id: int, shareholding: schemas.ShareholdingCreate, db: Session = Depends(get_db)):
+    db_shareholding = db.query(models.Shareholding).filter(models.Shareholding.id == shareholding_id).first()
+    if db_shareholding is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Shareholding not found")
+
+    company = db.query(models.Company).filter(models.Company.id == shareholding.company_id).first()
+    if not company:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company not found")
+
+    person = db.query(models.Person).filter(models.Person.id == shareholding.person_id).first()
+    if not person:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Person not found")
+
+    for key, value in shareholding.dict().items():
+        setattr(db_shareholding, key, value)
+
+    db.commit()
+    db.refresh(db_shareholding)
+    return db_shareholding
+
+
+@router.delete("/shareholdings/{shareholding_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_shareholding(shareholding_id: int, db: Session = Depends(get_db)):
+    db_shareholding = db.query(models.Shareholding).filter(models.Shareholding.id == shareholding_id).first()
+    if db_shareholding is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Shareholding not found")
+
+    db.delete(db_shareholding)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
