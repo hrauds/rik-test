@@ -2,14 +2,14 @@
   <MainLayout>
     <div class="container">
       <div class="d-flex justify-content-between align-items-center mb-4">
-          <BreadcrumbComponent
-            pageName="Osaühingu registreerimine"
-            @home-click="goHome"
-          />
-          <button type="button" class="btn btn-primary" @click="goHome">
-            <i class="bi bi-arrow-left me-1"></i>Tagasi
-          </button>
-        </div>
+        <BreadcrumbComponent
+          pageName="Osaühingu registreerimine"
+          @home-click="goHome"
+        />
+        <button type="button" class="btn btn-primary" @click="goHome">
+          <i class="bi bi-arrow-left me-1"></i>Tagasi
+        </button>
+      </div>
       <form @submit.prevent="submitForm">
         <div class="shadow-sm rounded bg-white p-4 mb-4">
           <h2 class="h5 mb-4">Osaühingu andmed</h2>
@@ -102,7 +102,11 @@
             {{ errors.shareholders }}
           </div>
 
-          <div v-for="(shareholder, index) in company.shareholders" :key="index" class="mb-4 p-3 border rounded shadow-sm">
+          <div
+            v-for="(shareholder, index) in company.shareholders"
+            :key="index"
+            class="mb-4 p-3 border rounded shadow-sm"
+          >
             <div class="d-flex justify-content-between align-items-center mb-3">
               <h3 class="h6 mb-0">Osanik {{ index + 1 }}</h3>
               <button
@@ -116,7 +120,9 @@
             </div>
 
             <div class="mb-3">
-              <label class="form-label d-block">Osaniku tüüp<span class="text-danger">*</span></label>
+              <label class="form-label d-block"
+                >Osaniku tüüp<span class="text-danger">*</span></label
+              >
               <div class="btn-group" role="group">
                 <input
                     type="radio"
@@ -125,8 +131,13 @@
                     :id="'individual' + index"
                     value="individual"
                     v-model="shareholder.type"
+                />
+                <label
+                  class="btn btn-outline-primary"
+                  :for="'individual' + index"
                 >
-                <label class="btn btn-outline-primary" :for="'individual' + index">Füüsiline isik</label>
+                  Füüsiline isik
+                </label>
 
                 <input
                     type="radio"
@@ -135,42 +146,76 @@
                     :id="'legal' + index"
                     value="legal"
                     v-model="shareholder.type"
-                >
-                <label class="btn btn-outline-primary" :for="'legal' + index">Juriidiline isik</label>
+                />
+                <label class="btn btn-outline-primary" :for="'legal' + index">
+                  Juriidiline isik
+                </label>
               </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label d-block"
+                >Otsi isikut või ettevõtet</label
+              >
+              <input
+                  type="text"
+                  class="form-control"
+                  v-model="shareholder.searchQuery"
+                  @input="searchPerson(index)"
+                  placeholder="Otsi..."
+              />
+              <ul
+                v-if="shareholder.searchResults && shareholder.searchResults.length"
+                class="list-group mt-2"
+              >
+                <li
+                  v-for="(result, rIndex) in shareholder.searchResults"
+                  :key="rIndex"
+                  class="list-group-item list-group-item-action"
+                  @click="selectPerson(index, result)"
+                >
+                  {{ result.display }}
+                </li>
+              </ul>
             </div>
 
             <div v-if="shareholder.type === 'individual'" class="mb-3">
               <div class="row">
                 <div class="col-md-4 mb-3">
-                  <label :for="'firstName' + index" class="form-label">Eesnimi<span class="text-danger">*</span></label>
+                  <label :for="'firstName' + index" class="form-label"
+                    >Eesnimi<span class="text-danger">*</span></label
+                  >
                   <input
                       type="text"
                       class="form-control"
                       :id="'firstName' + index"
                       v-model="shareholder.firstName"
                       required
-                  >
+                  />
                 </div>
                 <div class="col-md-4 mb-3">
-                  <label :for="'lastName' + index" class="form-label">Perenimi<span class="text-danger">*</span></label>
+                  <label :for="'lastName' + index" class="form-label"
+                    >Perenimi<span class="text-danger">*</span></label
+                  >
                   <input
                       type="text"
                       class="form-control"
                       :id="'lastName' + index"
                       v-model="shareholder.lastName"
                       required
-                  >
+                  />
                 </div>
                 <div class="col-md-4 mb-3">
-                  <label :for="'idCode' + index" class="form-label">Isikukood<span class="text-danger">*</span></label>
+                  <label :for="'idCode' + index" class="form-label"
+                    >Isikukood<span class="text-danger">*</span></label
+                  >
                   <input
                       type="text"
                       class="form-control"
                       :id="'idCode' + index"
                       v-model="shareholder.idCode"
                       required
-                  >
+                  />
                 </div>
               </div>
             </div>
@@ -178,30 +223,36 @@
             <div v-if="shareholder.type === 'legal'" class="mb-3">
               <div class="row">
                 <div class="col-md-6 mb-3">
-                  <label :for="'legalName' + index" class="form-label">Ettevõtte nimi<span class="text-danger">*</span></label>
+                  <label :for="'legalName' + index" class="form-label"
+                    >Ettevõtte nimi<span class="text-danger">*</span></label
+                  >
                   <input
                       type="text"
                       class="form-control"
                       :id="'legalName' + index"
                       v-model="shareholder.legalName"
                       required
-                  >
+                  />
                 </div>
                 <div class="col-md-6 mb-3">
-                  <label :for="'legalCode' + index" class="form-label">Registrikood<span class="text-danger">*</span></label>
+                  <label :for="'legalCode' + index" class="form-label"
+                    >Registrikood<span class="text-danger">*</span></label
+                  >
                   <input
                       type="text"
                       class="form-control"
                       :id="'legalCode' + index"
                       v-model="shareholder.legalCode"
                       required
-                  >
+                  />
                 </div>
               </div>
             </div>
 
             <div class="mb-3">
-              <label :for="'share' + index" class="form-label">Osalus (€)<span class="text-danger">*</span></label>
+              <label :for="'share' + index" class="form-label"
+                >Osalus (€)<span class="text-danger">*</span></label
+              >
               <input
                   type="number"
                   class="form-control"
@@ -211,7 +262,7 @@
                   min="1"
                   placeholder="Vähemalt 1€"
                   required
-              >
+              />
               <div v-if="errors['share'+index]" class="invalid-feedback">
                 {{ errors['share'+index] }}
               </div>
@@ -219,8 +270,12 @@
           </div>
 
           <div class="text-end mt-4">
-            <button type="button" class="btn btn-secondary" @click="goHome">Tühista</button>
-            <button type="submit" class="btn btn-primary" :disabled="!isFormValid">Salvesta</button>
+            <button type="button" class="btn btn-secondary me-2" @click="goHome">
+              Tühista
+            </button>
+            <button type="submit" class="btn btn-primary" :disabled="!isFormValid">
+              Salvesta
+            </button>
           </div>
         </div>
       </form>
@@ -240,6 +295,16 @@ export default {
   },
   data() {
     return {
+      // Mock data – replace with real search if needed
+      mockIndividuals: [
+        {firstName: 'Mari', lastName: 'Maasikas', idCode: '49001010000'},
+        {firstName: 'Jüri', lastName: 'Õun', idCode: '38001010001'},
+      ],
+      mockLegals: [
+        {legalName: 'Firma OÜ', legalCode: '1234567'},
+        {legalName: 'Test AS', legalCode: '7654321'},
+      ],
+
       company: {
         name: '',
         regCode: '',
@@ -258,16 +323,18 @@ export default {
       return this.company.shareholders.reduce((sum, shareholder) => sum + (Number(shareholder.share) || 0), 0)
     },
     capitalPercentage() {
-      return this.company.capital ? (this.calculatedCapital / this.company.capital) * 100 : 0
+      return this.company.capital
+          ? (this.calculatedCapital / this.company.capital) * 100
+          : 0
     },
     isFormValid() {
       return (
-        this.company.name.length >= 3 &&
-        this.company.regCode.length === 7 &&
-        this.company.foundingDate &&
-        this.company.capital >= 2500 &&
-        this.company.shareholders.length > 0 &&
-        this.calculatedCapital === this.company.capital
+          this.company.name.length >= 3 &&
+          this.company.regCode.length === 7 &&
+          this.company.foundingDate &&
+          this.company.capital >= 2500 &&
+          this.company.shareholders.length > 0 &&
+          this.calculatedCapital === this.company.capital
       )
     }
   },
@@ -286,7 +353,10 @@ export default {
         idCode: '',
         legalName: '',
         legalCode: '',
-        share: 0
+        share: 0,
+
+        searchQuery: '',
+        searchResults: []
       })
     },
     removeShareholder(index) {
@@ -323,12 +393,59 @@ export default {
 
       this.company.shareholders.forEach((shareholder, index) => {
         if (!shareholder.share || shareholder.share < 1) {
-          this.errors['share'+index] = 'Osalus peab olema vähemalt 1€'
+          this.errors['share' + index] = 'Osalus peab olema vähemalt 1€'
           isValid = false
         }
       })
 
       return isValid
+    },
+    searchPerson(index) {
+      const shareholder = this.company.shareholders[index]
+      const query = shareholder.searchQuery.toLowerCase().trim()
+
+      if (!query) {
+        shareholder.searchResults = []
+        return
+      }
+
+      if (shareholder.type === 'individual') {
+
+        shareholder.searchResults = this.mockIndividuals
+            .filter((p) =>
+                p.firstName.toLowerCase().includes(query) ||
+                p.lastName.toLowerCase().includes(query) ||
+                p.idCode.includes(query)
+            )
+            .map((p) => ({
+              display: `${p.firstName} ${p.lastName} (ID: ${p.idCode})`,
+              ...p
+            }))
+      } else {
+
+        shareholder.searchResults = this.mockLegals
+            .filter((p) =>
+                p.legalName.toLowerCase().includes(query) ||
+                p.legalCode.includes(query)
+            )
+            .map((p) => ({
+              display: `${p.legalName} (Reg: ${p.legalCode})`,
+              ...p
+            }))
+      }
+    },
+    selectPerson(index, person) {
+      const shareholder = this.company.shareholders[index]
+      if (shareholder.type === 'individual') {
+        shareholder.firstName = person.firstName
+        shareholder.lastName = person.lastName
+        shareholder.idCode = person.idCode
+      } else {
+        shareholder.legalName = person.legalName
+        shareholder.legalCode = person.legalCode
+      }
+      shareholder.searchQuery = person.display
+      shareholder.searchResults = []
     },
     submitForm() {
       if (!this.validateForm()) {
@@ -336,7 +453,6 @@ export default {
       }
 
       console.log('Form submitted:', this.company)
-
       this.$router.push('/company/' + this.company.regCode)
     }
   }
