@@ -26,16 +26,16 @@
               <dd class="col-sm-9">{{ company.name }}</dd>
 
               <dt class="col-sm-2">Registrikood:</dt>
-              <dd class="col-sm-9">{{ company.regCode }}</dd>
+              <dd class="col-sm-9">{{ company.reg_code }}</dd>
 
               <dt class="col-sm-2">Asutamiskuupäev:</dt>
-              <dd class="col-sm-9">{{ formatDate(company.foundingDate) }}</dd>
+              <dd class="col-sm-9">{{ formatDate(company.founding_date) }}</dd>
 
               <dt class="col-sm-2">Kogukapital:</dt>
               <dd class="col-sm-9">{{ company.capital }} €</dd>
 
               <dt class="col-sm-2">Osanike arv:</dt>
-              <dd class="col-sm-9">{{ company.shareholders.length }}</dd>
+              <dd class="col-sm-9">{{ shareholders.length }}</dd>
             </dl>
           </div>
 
@@ -46,36 +46,31 @@
                 <thead>
                   <tr>
                     <th style="width: 30%">Nimi</th>
-                    <th style="width: 25%">Isikukood</th>
+                    <th style="width: 25%">Isikukood / Registrikood</th>
                     <th style="width: 15%">Osalus (€)</th>
                     <th style="width: 15%">Osalus (%)</th>
-                    <th style="width: 15%">Asutaja</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="(shareholder, index) in company.shareholders" :key="index">
+                  <tr v-for="(shareholder, index) in shareholders" :key="index">
                     <td>
                       <span v-if="shareholder.type === 'individual'">
-                        {{ shareholder.firstName }} {{ shareholder.lastName }}
+                        {{ shareholder.first_name }} {{ shareholder.last_name }}
                       </span>
                       <span v-else>
-                        {{ shareholder.legalName }}
+                        {{ shareholder.legal_name }}
                       </span>
                     </td>
                     <td>
                       <span v-if="shareholder.type === 'individual'">
-                        {{ shareholder.idCode }}
+                        {{ shareholder.id_code }}
                       </span>
                       <span v-else>
-                        {{ shareholder.legalCode }}
+                        {{ shareholder.reg_code }}
                       </span>
                     </td>
                     <td>{{ shareholder.share }} €</td>
                     <td>{{ calculatePercentage(shareholder.share, company.capital) }}%</td>
-                    <td>
-                      <span v-if="shareholder.isFounder">Jah</span>
-                      <span v-else>Ei</span>
-                    </td>
                   </tr>
                 </tbody>
               </table>
@@ -90,10 +85,17 @@
         </div>
       </div>
     </template>
+
+    <div v-else class="container text-center mt-5">
+      <div class="spinner-border" role="status">
+        <span class="visually-hidden">Laadimine...</span>
+      </div>
+    </div>
   </MainLayout>
 </template>
 
 <script>
+import axios from 'axios'
 import MainLayout from '../components/layout/MainLayout.vue'
 import BreadcrumbComponent from "../components/common/BreadcrumbComponent.vue";
 
@@ -106,50 +108,43 @@ export default {
   data() {
     return {
       error: null,
-      company: null
+      company: null,
+      shareholders: []
     }
   },
   created() {
     this.fetchCompanyData()
   },
   methods: {
-    fetchCompanyData() {
-      const companyId = this.$route.params.id
-
-      if (companyId) {
-        this.company = {
-          name: 'Näidis Osaühing OÜ',
-          regCode: '1234567',
-          foundingDate: '2023-05-15',
-          capital: 5000,
-          shareholders: [
-            {
-              type: 'individual',
-              firstName: 'Marju',
-              lastName: 'Lepik',
-              idCode: '48702124567',
-              share: 2500,
-              isFounder: true
-            },
-            {
-              type: 'individual',
-              firstName: 'Jaak',
-              lastName: 'Tamm',
-              idCode: '38505176238',
-              share: 1500,
-              isFounder: true
-            },
-            {
-              type: 'legal',
-              legalName: 'Investeeringud OÜ',
-              legalCode: '12345678',
-              share: 1000,
-              isFounder: false
-            }
-          ]
+    async fetchCompanyData() {
+      try {
+        const companyId = this.$route.params.id
+        if (!companyId) {
+          this.error = 'Osaühingut ei leitud'
+          return
         }
-      } else {
-        this.error = 'Osaühingut ei leitud'
+
+        const apiBaseUrl = process.env.VUE_APP_API_URL || '';
+
+        const companyResponse = await axios.get(`${apiBaseUrl}/companies/${companyId}`)
+        this.company = companyResponse.data
+
+        const shareholdingsResponse = await axios.get(`${apiBaseUrl}/shareholdings/`, {
+          params: {company_id: companyId}
+        })
+
+        this.shareholders = await Promise.all(
+            shareholdingsResponse.data.map(async (shareholding) => {
+              const personResponse = await axios.get(`${apiBaseUrl}/persons/${shareholding.person_id}`)
+              return {
+                ...personResponse.data,
+                share: shareholding.share
+              }
+            })
+        )
+      } catch (error) {
+        console.error('Error fetching company data:', error)
+        this.error = 'Viga andmete laadimisel: ' + (error.response?.data?.detail || error.message)
       }
     },
     formatDate(dateString) {
@@ -165,9 +160,9 @@ export default {
       this.$router.push('/')
     },
     navigateToCapitalIncrease() {
-      const regCode = this.company?.regCode
-      if (regCode) {
-        this.$router.push(`/company/${regCode}/capital`)
+      const companyId = this.company?.id
+      if (companyId) {
+        this.$router.push(`/company/${companyId}/capital`)
       }
     }
   }
