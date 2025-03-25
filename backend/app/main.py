@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 
@@ -25,13 +25,13 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:8080"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-app.include_router(router, prefix="/api")
+app.include_router(router)
 
 @app.get("/")
 def read_root():
@@ -39,7 +39,6 @@ def read_root():
         "message": "Welcome to Company Registration API",
         "version": "1.0.0",
         "documentation": "/docs",
-        "api_prefix": "/api"
     }
 
 @app.get("/health")
