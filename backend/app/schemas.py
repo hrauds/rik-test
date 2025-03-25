@@ -19,10 +19,13 @@ class PersonBase(BaseModel):
     name: Optional[str] = None
     reg_code: Optional[str] = None
 
+
+# Create models - used for creating new entities
+class PersonCreate(PersonBase):
     @validator('first_name', 'last_name', 'id_code')
     def validate_individual_fields(cls, v, values):
         if 'type' in values and values['type'] == PersonType.INDIVIDUAL:
-            if v is None and values.get('type') == PersonType.INDIVIDUAL:
+            if v is None:
                 field_name = next(
                     (name for name, value in values.items() if value is v),
                     "this field"
@@ -33,7 +36,7 @@ class PersonBase(BaseModel):
     @validator('name', 'reg_code')
     def validate_legal_fields(cls, v, values):
         if 'type' in values and values['type'] == PersonType.LEGAL:
-            if v is None and values.get('type') == PersonType.LEGAL:
+            if v is None:
                 field_name = next(
                     (name for name, value in values.items() if value is v),
                     "this field"
@@ -55,11 +58,6 @@ class ShareholdingBase(BaseModel):
     share: Decimal
 
 
-# Create models - used for creating new entities
-class PersonCreate(PersonBase):
-    pass
-
-
 class CompanyCreate(CompanyBase):
     pass
 
@@ -72,28 +70,31 @@ class ShareholdingCreate(ShareholdingBase):
 class Person(PersonBase):
     id: int
     created_at: datetime
-    updated_at: datetime
+    updated_at: Optional[datetime] = None
 
     class Config:
         orm_mode = True
+        from_attributes = True
 
 
 class Company(CompanyBase):
     id: int
     created_at: datetime
-    updated_at: datetime
+    updated_at: Optional[datetime] = None
 
     class Config:
         orm_mode = True
+        from_attributes = True
 
 
 class Shareholding(ShareholdingBase):
     id: int
     created_at: datetime
-    updated_at: datetime
+    updated_at: Optional[datetime] = None
 
     class Config:
         orm_mode = True
+        from_attributes = True
 
 
 class ShareholdingWithDetails(Shareholding):
@@ -102,13 +103,7 @@ class ShareholdingWithDetails(Shareholding):
 
     class Config:
         orm_mode = True
-
-
-class CompanyWithShareholders(Company):
-    shareholders: List["PersonWithShare"] = []
-
-    class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class PersonWithShare(Person):
@@ -116,6 +111,15 @@ class PersonWithShare(Person):
 
     class Config:
         orm_mode = True
+        from_attributes = True
+
+
+class CompanyWithShareholders(Company):
+    shareholders: List[PersonWithShare] = []
+
+    class Config:
+        orm_mode = True
+        from_attributes = True
 
 
 class PersonWithShareholdings(Person):
@@ -123,3 +127,4 @@ class PersonWithShareholdings(Person):
 
     class Config:
         orm_mode = True
+        from_attributes = True

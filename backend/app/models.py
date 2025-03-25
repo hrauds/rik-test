@@ -22,7 +22,7 @@ class Person(Base):
     last_name = Column(String, nullable=True)
     id_code = Column(String, nullable=True, index=True)
 
-    name = Column(String, nullable=True)
+    legal_name = Column(String, nullable=True)
     reg_code = Column(String, nullable=True, index=True)
 
     created_at = Column(DateTime, default=datetime.utcnow)
