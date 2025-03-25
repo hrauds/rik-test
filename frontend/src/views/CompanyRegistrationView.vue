@@ -164,8 +164,14 @@
                   @input="searchPerson(index)"
                   placeholder="Otsi..."
               />
+              <div v-if="shareholder.isSearching" class="mt-2">
+                <div class="spinner-border spinner-border-sm text-primary" role="status">
+                  <span class="visually-hidden">Otsin...</span>
+                </div>
+                <span class="ms-2">Otsin...</span>
+              </div>
               <ul
-                v-if="shareholder.searchResults && shareholder.searchResults.length"
+                v-else-if="shareholder.searchResults && shareholder.searchResults.length"
                 class="list-group mt-2"
               >
                 <li
@@ -177,6 +183,9 @@
                   {{ result.display }}
                 </li>
               </ul>
+              <div v-else-if="shareholder.searchPerformed && !shareholder.searchResults.length && shareholder.searchQuery" class="alert alert-info mt-2">
+                Tulemusi ei leitud. Sisesta täpsem otsingusõna või lisa uus.
+              </div>
             </div>
 
             <div v-if="shareholder.type === 'individual'" class="mb-3">
@@ -273,8 +282,12 @@
             <button type="button" class="btn btn-secondary me-2" @click="goHome">
               Tühista
             </button>
-            <button type="submit" class="btn btn-primary" :disabled="!isFormValid">
-              Salvesta
+            <button type="submit" class="btn btn-primary" :disabled="!isFormValid || submitting">
+              <span v-if="submitting">
+                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                Salvestamine...
+              </span>
+              <span v-else>Salvesta</span>
             </button>
           </div>
         </div>
@@ -284,6 +297,7 @@
 </template>
 
 <script>
+import axios from 'axios'
 import MainLayout from '../components/layout/MainLayout.vue'
 import BreadcrumbComponent from "@/components/common/BreadcrumbComponent.vue";
 
@@ -293,18 +307,9 @@ export default {
     BreadcrumbComponent,
     MainLayout
   },
+
   data() {
     return {
-      // Mock data – replace with real search if needed
-      mockIndividuals: [
-        {firstName: 'Mari', lastName: 'Maasikas', idCode: '49001010000'},
-        {firstName: 'Jüri', lastName: 'Õun', idCode: '38001010001'},
-      ],
-      mockLegals: [
-        {legalName: 'Firma OÜ', legalCode: '1234567'},
-        {legalName: 'Test AS', legalCode: '7654321'},
-      ],
-
       company: {
         name: '',
         regCode: '',
@@ -312,7 +317,9 @@ export default {
         capital: 2500,
         shareholders: []
       },
-      errors: {}
+      errors: {},
+      searchTimeout: null,
+      submitting: false
     }
   },
   computed: {
@@ -320,17 +327,24 @@ export default {
       return new Date().toISOString().split('T')[0]
     },
     calculatedCapital() {
-      return this.company.shareholders.reduce((sum, shareholder) => sum + (Number(shareholder.share) || 0), 0)
+      // Sum up the shares from all shareholders
+      return this.company.shareholders.reduce(
+        (sum, shareholder) => sum + (Number(shareholder.share) || 0),
+        0
+      )
     },
     capitalPercentage() {
       return this.company.capital
           ? (this.calculatedCapital / this.company.capital) * 100
           : 0
     },
+
     isFormValid() {
       return (
           this.company.name.length >= 3 &&
+          this.company.name.length <= 100 &&
           this.company.regCode.length === 7 &&
+          /^\d{7}$/.test(this.company.regCode) &&
           this.company.foundingDate &&
           this.company.capital >= 2500 &&
           this.company.shareholders.length > 0 &&
@@ -338,15 +352,23 @@ export default {
       )
     }
   },
+
   created() {
     this.addShareholder()
+    const companyId = this.$route.params.id
+    if (companyId) {
+      this.loadCompany(companyId)
+    }
   },
+
   methods: {
     goHome() {
       this.$router.push('/')
     },
+
     addShareholder() {
       this.company.shareholders.push({
+        id: null,
         type: 'individual',
         firstName: '',
         lastName: '',
@@ -356,12 +378,75 @@ export default {
         share: 0,
 
         searchQuery: '',
-        searchResults: []
+        searchResults: [],
+        isSearching: false,
+        searchPerformed: false
       })
     },
+
     removeShareholder(index) {
       this.company.shareholders.splice(index, 1)
+      if (this.company.shareholders.length === 0) {
+        this.addShareholder()
+      }
     },
+
+    async loadCompany(id) {
+      try {
+        const apiBaseUrl = process.env.VUE_APP_API_URL || '';
+        console.log(`Loading company with ID ${id} from ${apiBaseUrl}/companies/${id}`);
+
+        const response = await axios.get(`${apiBaseUrl}/companies/${id}`)
+        const data = response.data
+
+        this.company.name = data.name
+        this.company.regCode = data.reg_code
+        this.company.foundingDate = data.founding_date
+        this.company.capital = Number(data.capital)
+
+        this.company.shareholders = []
+
+        if (data.shareholders && data.shareholders.length > 0) {
+          data.shareholders.forEach(s => {
+            const shareholder = {
+              id: s.id,
+              type: s.type,
+              share: Number(s.share),
+              searchQuery: '',
+              searchResults: [],
+              isSearching: false,
+              searchPerformed: false
+            }
+
+            if (s.type === 'individual') {
+              shareholder.firstName = s.first_name
+              shareholder.lastName = s.last_name
+              shareholder.idCode = s.id_code
+              shareholder.legalName = ''
+              shareholder.legalCode = ''
+              shareholder.searchQuery = `${s.first_name} ${s.last_name}`
+            } else {
+              shareholder.firstName = ''
+              shareholder.lastName = ''
+              shareholder.idCode = ''
+              shareholder.legalName = s.name
+              shareholder.legalCode = s.reg_code
+              shareholder.searchQuery = s.name
+            }
+
+            this.company.shareholders.push(shareholder)
+          })
+        } else {
+          this.addShareholder()
+        }
+      } catch (error) {
+        console.error('Failed to load company:', error)
+        console.error('Response data:', error.response?.data)
+        console.error('Response status:', error.response?.status)
+        alert(`Viga osaühingu laadimisel: ${error.message}`)
+      }
+    },
+
     validateForm() {
       this.errors = {}
       let isValid = true
@@ -396,64 +481,197 @@ export default {
           this.errors['share' + index] = 'Osalus peab olema vähemalt 1€'
           isValid = false
         }
+
+        if (shareholder.type === 'individual') {
+          if (!shareholder.firstName) {
+            this.errors[`firstName${index}`] = 'Eesnimi on kohustuslik'
+            isValid = false
+          }
+          if (!shareholder.lastName) {
+            this.errors[`lastName${index}`] = 'Perenimi on kohustuslik'
+            isValid = false
+          }
+          if (!shareholder.idCode) {
+            this.errors[`idCode${index}`] = 'Isikukood on kohustuslik'
+            isValid = false
+          }
+        } else {
+          if (!shareholder.legalName) {
+            this.errors[`legalName${index}`] = 'Ettevõtte nimi on kohustuslik'
+            isValid = false
+          }
+          if (!shareholder.legalCode) {
+            this.errors[`legalCode${index}`] = 'Registrikood on kohustuslik'
+            isValid = false
+          }
+        }
       })
 
       return isValid
     },
-    searchPerson(index) {
+
+    async searchPerson(index) {
       const shareholder = this.company.shareholders[index]
       const query = shareholder.searchQuery.toLowerCase().trim()
 
-      if (!query) {
-        shareholder.searchResults = []
+      shareholder.isSearching = query.length >= 2
+      shareholder.searchResults = []
+
+      clearTimeout(this.searchTimeout)
+
+      if (query.length < 2) {
         return
       }
 
-      if (shareholder.type === 'individual') {
+      this.searchTimeout = setTimeout(async () => {
+        try {
+          const apiBaseUrl = process.env.VUE_APP_API_URL || '';
+          console.log(`API Base URL: ${apiBaseUrl}`);
 
-        shareholder.searchResults = this.mockIndividuals
-            .filter((p) =>
-                p.firstName.toLowerCase().includes(query) ||
-                p.lastName.toLowerCase().includes(query) ||
-                p.idCode.includes(query)
-            )
-            .map((p) => ({
-              display: `${p.firstName} ${p.lastName} (ID: ${p.idCode})`,
-              ...p
-            }))
-      } else {
+          const params = new URLSearchParams();
+          params.append('type', shareholder.type);
+          if (query) params.append('search', query);
 
-        shareholder.searchResults = this.mockLegals
-            .filter((p) =>
-                p.legalName.toLowerCase().includes(query) ||
-                p.legalCode.includes(query)
-            )
-            .map((p) => ({
-              display: `${p.legalName} (Reg: ${p.legalCode})`,
-              ...p
-            }))
-      }
+          const url = `${apiBaseUrl}/persons/?${params.toString()}`;
+          console.log(`Searching persons with URL: ${url}`);
+
+          const response = await axios.get(url);
+          const results = response.data;
+
+          console.log(`Found ${results.length} results`);
+
+          shareholder.searchResults = results.map(p => {
+            if (shareholder.type === 'individual') {
+              return {
+                id: p.id,
+                display: `${p.first_name} ${p.last_name} (${p.id_code || 'N/A'})`,
+                first_name: p.first_name,
+                last_name: p.last_name,
+                id_code: p.id_code
+              }
+            } else {
+              return {
+                id: p.id,
+                display: `${p.name} (${p.reg_code || 'N/A'})`,
+                name: p.name,
+                reg_code: p.reg_code
+              }
+            }
+          })
+        } catch (error) {
+          console.error('Search failed:', error)
+          console.error('Response data:', error.response?.data)
+          console.error('Response status:', error.response?.status)
+        } finally {
+          shareholder.isSearching = false
+          shareholder.searchPerformed = true
+        }
+      }, 300)
     },
+
     selectPerson(index, person) {
       const shareholder = this.company.shareholders[index]
+
+      shareholder.id = person.id
+
       if (shareholder.type === 'individual') {
-        shareholder.firstName = person.firstName
-        shareholder.lastName = person.lastName
-        shareholder.idCode = person.idCode
+        shareholder.firstName = person.first_name
+        shareholder.lastName = person.last_name
+        shareholder.idCode = person.id_code
+
+        shareholder.legalName = ''
+        shareholder.legalCode = ''
       } else {
-        shareholder.legalName = person.legalName
-        shareholder.legalCode = person.legalCode
+        shareholder.legalName = person.name
+        shareholder.legalCode = person.reg_code
+
+        shareholder.firstName = ''
+        shareholder.lastName = ''
+        shareholder.idCode = ''
       }
+
       shareholder.searchQuery = person.display
       shareholder.searchResults = []
     },
-    submitForm() {
-      if (!this.validateForm()) {
+
+    async submitForm() {
+      if (!this.validateForm() || this.submitting) {
         return
       }
 
-      console.log('Form submitted:', this.company)
-      this.$router.push('/company/' + this.company.regCode)
+      this.submitting = true
+      const apiBaseUrl = process.env.VUE_APP_API_URL || '';
+
+      try {
+        const companyData = {
+          name: this.company.name,
+          reg_code: this.company.regCode,
+          founding_date: this.company.foundingDate,
+          capital: String(this.company.capital)
+        }
+
+        console.log('Submitting company data:', companyData);
+
+        const isEditing = !!this.$route.params.id
+        let savedCompany
+
+        if (isEditing) {
+          const response = await axios.put(`${apiBaseUrl}/companies/${this.$route.params.id}`, companyData)
+          savedCompany = response.data
+        } else {
+          const response = await axios.post(`${apiBaseUrl}/companies/`, companyData)
+          savedCompany = response.data
+        }
+
+        console.log('Company saved:', savedCompany);
+
+        for (const shareholder of this.company.shareholders) {
+          let personId = shareholder.id
+
+          if (!personId) {
+            let personData
+            if (shareholder.type === 'individual') {
+              personData = {
+                type: 'individual',
+                first_name: shareholder.firstName,
+                last_name: shareholder.lastName,
+                id_code: shareholder.idCode
+              }
+            } else {
+              personData = {
+                type: 'legal',
+                name: shareholder.legalName,
+                reg_code: shareholder.legalCode
+              }
+            }
+
+            console.log('Creating new person:', personData);
+            const personResponse = await axios.post(`${apiBaseUrl}/persons/`, personData)
+            const savedPerson = personResponse.data
+            personId = savedPerson.id
+            console.log('Person created with ID:', personId);
+          }
+
+          const shareData = {
+            company_id: savedCompany.id,
+            person_id: personId,
+            share: String(shareholder.share)
+          }
+
+          console.log('Creating shareholding:', shareData);
+          await axios.post(`${apiBaseUrl}/shareholdings/`, shareData)
+        }
+
+        alert(isEditing ? 'Osaühing edukalt uuendatud!' : 'Osaühing edukalt registreeritud!')
+        this.$router.push('/company/' + savedCompany.id)
+      } catch (error) {
+        console.error('Submit error:', error)
+        console.error('Response data:', error.response?.data)
+        console.error('Response status:', error.response?.status)
+        alert(`Viga osaühingu salvestamisel: ${error.response?.data?.detail || error.message}`)
+      } finally {
+        this.submitting = false
+      }
     }
   }
 }
