@@ -16,7 +16,7 @@ class PersonBase(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     id_code: Optional[str] = None
-    name: Optional[str] = None
+    legal_name: Optional[str] = None
     reg_code: Optional[str] = None
 
 
@@ -33,7 +33,7 @@ class PersonCreate(PersonBase):
                 raise ValueError(f'Individual persons must have {field_name}')
         return v
 
-    @validator('name', 'reg_code')
+    @validator('legal_name', 'reg_code')
     def validate_legal_fields(cls, v, values):
         if 'type' in values and values['type'] == PersonType.LEGAL:
             if v is None:
