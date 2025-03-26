@@ -45,10 +45,12 @@
               <table class="table">
                 <thead>
                   <tr>
-                    <th style="width: 30%">Nimi</th>
-                    <th style="width: 25%">Isikukood / Registrikood</th>
+                    <th style="width: 25%">Nimi</th>
+                    <th style="width: 15%">Isiku tüüp</th>
+                    <th style="width: 20%">Isikukood / Registrikood</th>
                     <th style="width: 15%">Osalus (€)</th>
                     <th style="width: 15%">Osalus (%)</th>
+                    <th style="width: 10%">Asutaja</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -62,6 +64,9 @@
                       </span>
                     </td>
                     <td>
+                      {{ shareholder.type === 'individual' ? 'Füüsiline isik' : 'Juriidiline isik' }}
+                    </td>
+                    <td>
                       <span v-if="shareholder.type === 'individual'">
                         {{ shareholder.id_code }}
                       </span>
@@ -71,6 +76,7 @@
                     </td>
                     <td>{{ shareholder.share }} €</td>
                     <td>{{ calculatePercentage(shareholder.share, company.capital) }}%</td>
+                    <td>{{ shareholder.isFounder ? 'Jah' : 'Ei' }}</td>
                   </tr>
                 </tbody>
               </table>
@@ -124,23 +130,24 @@ export default {
           return
         }
 
-        const apiBaseUrl = process.env.VUE_APP_API_URL || '';
+        const apiBaseUrl = process.env.VUE_APP_API_URL || ''
 
         const companyResponse = await axios.get(`${apiBaseUrl}/companies/${companyId}`)
         this.company = companyResponse.data
 
         const shareholdingsResponse = await axios.get(`${apiBaseUrl}/shareholdings/`, {
-          params: {company_id: companyId}
+          params: { company_id: companyId }
         })
 
         this.shareholders = await Promise.all(
-            shareholdingsResponse.data.map(async (shareholding) => {
-              const personResponse = await axios.get(`${apiBaseUrl}/persons/${shareholding.person_id}`)
-              return {
-                ...personResponse.data,
-                share: shareholding.share
-              }
-            })
+          shareholdingsResponse.data.map(async (shareholding) => {
+            const personResponse = await axios.get(`${apiBaseUrl}/persons/${shareholding.person_id}`)
+            return {
+              ...personResponse.data,
+              share: shareholding.share,
+              isFounder: shareholding.isFounder || false
+            }
+          })
         )
       } catch (error) {
         console.error('Error fetching company data:', error)
