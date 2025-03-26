@@ -6,8 +6,7 @@
         <div class="row justify-content-center">
           <div class="col-lg-6">
             <p class="lead mb-4">
-              Osaühingute register võimaldab hallata ja asutada uusi osaühinguid ning
-              otsida olemasolevaid ettevõtteid.
+              Osaühingute register võimaldab hallata ja asutada uusi osaühinguid ning otsida olemasolevaid ettevõtteid.
             </p>
             <button
               type="button"
@@ -25,16 +24,11 @@
     <div class="container">
       <div class="shadow-sm rounded bg-white p-4 mb-5">
         <h5 class="mb-3">Otsi osaühingut</h5>
-
         <form @submit.prevent="performSearch">
           <div class="input-group">
-            <select
-              class="form-select flex-grow-0 w-auto"
-              v-model="searchType"
-              aria-label="Otsingu tüüp"
-            >
-              <option value="name">Nimi</option>
-              <option value="regCode">Registrikood</option>
+
+            <select class="form-select flex-grow-0 w-auto" v-model="searchMode" aria-label="Otsingu tüüp">
+              <option value="company">Osaühing</option>
               <option value="shareholder">Osanik</option>
             </select>
             <input
@@ -44,13 +38,7 @@
               :placeholder="getPlaceholder()"
               aria-label="Otsisõna"
             />
-            <button
-              type="submit"
-              class="btn btn-primary"
-              aria-label="Otsi"
-            >
-              Otsi
-            </button>
+            <button type="submit" class="btn btn-primary" aria-label="Otsi">Otsi</button>
           </div>
         </form>
 
@@ -59,22 +47,19 @@
             <h5 class="mb-3">Tulemused</h5>
             <span class="badge bg-primary">{{ searchResults.length }}</span>
           </div>
-
           <div class="list-group">
             <a
               v-for="company in searchResults"
-              :key="company.reg_code"
+              :key="company.id"
               href="#"
-              @click.prevent="viewCompany(company.reg_code)"
+              @click.prevent="viewCompany(company.id)"
               class="list-group-item list-group-item-action"
               :aria-label="`Vaata osaühingut ${company.name}`"
             >
               <div class="d-flex justify-content-between align-items-center">
                 <div>
                   <div class="fw-medium">{{ company.name }}</div>
-                  <small class="text-muted">
-                    Registrikood: {{ company.reg_code }}
-                  </small>
+                  <small class="text-muted">Registrikood: {{ company.reg_code }}</small>
                 </div>
                 <i class="bi bi-chevron-right"></i>
               </div>
@@ -96,7 +81,7 @@
 
 <script>
 import MainLayout from '../components/layout/MainLayout.vue'
-import axios from 'axios';
+import axios from 'axios'
 
 export default {
   name: 'HomeView',
@@ -106,18 +91,17 @@ export default {
   data() {
     return {
       searchQuery: '',
-      searchType: 'name',
+      // Two modes: "company" or "shareholder"
+      searchMode: 'company',
       searchResults: [],
       searched: false,
-
       allCompanies: [],
       error: null
     }
   },
   mounted() {
-    const apiBaseUrl = process.env.VUE_APP_API_URL || '';
-
-    axios.get(`${apiBaseUrl}/api/companies`)
+    const apiBaseUrl = process.env.VUE_APP_API_URL || ''
+    axios.get(`${apiBaseUrl}/companies`)
       .then(response => {
         this.allCompanies = response.data
       })
@@ -128,16 +112,9 @@ export default {
   },
   methods: {
     getPlaceholder() {
-      switch (this.searchType) {
-        case 'name':
-          return 'Sisesta osaühingu nimi või selle osa...'
-        case 'regCode':
-          return 'Sisesta registrikood...'
-        case 'shareholder':
-          return 'Sisesta osaniku nimi või kood...'
-        default:
-          return 'Sisesta otsisõna...'
-      }
+      return this.searchMode === 'company'
+        ? 'Sisesta osaühingu nimi või registrikood...'
+        : 'Sisesta osaniku nimi või kood...'
     },
     performSearch() {
       this.searched = true
@@ -146,26 +123,34 @@ export default {
         this.searchResults = this.allCompanies
         return
       }
-
       const query = this.searchQuery.trim().toLowerCase()
+      this.searchResults = this.allCompanies.filter(company => {
 
-      this.searchResults = this.allCompanies.filter((company) => {
-        if (this.searchType === 'name') {
-          return company.name.toLowerCase().includes(query)
-        } else if (this.searchType === 'regCode') {
-          return company.reg_code.includes(query)
-        } else if (this.searchType === 'shareholder') {
-          if (!company.shareholders) return false
-          return company.shareholders.some((sh) =>
-            sh.name.toLowerCase().includes(query)
-          )
+        if (this.searchMode === 'company') {
+          const combined = `${company.name} ${company.reg_code}`.toLowerCase()
+          return combined.includes(query)
+
+        } else {
+          if (!company.shareholders || company.shareholders.length === 0) return false
+          return company.shareholders.some(sh => {
+
+            if (sh.person && sh.person.type === 'individual') {
+              const fullName = `${sh.person.first_name} ${sh.person.last_name}`.toLowerCase()
+              const idCode = (sh.person.id_code || '').toLowerCase()
+              return fullName.includes(query) || idCode.includes(query)
+            } else if (sh.person) {
+              const legalInfo = `${sh.person.legal_name} ${sh.person.reg_code}`.toLowerCase()
+              return legalInfo.includes(query)
+            }
+            return false
+          })
         }
-        return false
       })
     },
-    viewCompany(regCode) {
-      if (regCode && /^\d{7}$/.test(regCode)) {
-        this.$router.push(`/company/${regCode}`)
+
+    viewCompany(id) {
+      if (id) {
+        this.$router.push(`/company/${id}`)
       }
     },
     navigateToRegistration() {
