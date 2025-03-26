@@ -5,7 +5,7 @@ Backend: FastAPI, SQLAlchemy, Pydantic, PostgreSQL
 Frontend: Vue.js, Axios
 
 ## Database Schema
-![Database Schema](./rik-test/database-diagram.png)
+![Database Schema](/database-diagram.png)
 
 ## Prerequisites
 - Docker
