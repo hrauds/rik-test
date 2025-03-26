@@ -4,7 +4,6 @@ from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
 
-
 class PersonType(str, Enum):
     INDIVIDUAL = "individual"
     LEGAL = "legal"
@@ -19,6 +18,8 @@ class PersonBase(BaseModel):
     legal_name: Optional[str] = None
     reg_code: Optional[str] = None
 
+    class Config:
+        orm_mode = True
 
 # Create models - used for creating new entities
 class PersonCreate(PersonBase):
@@ -51,16 +52,20 @@ class CompanyBase(BaseModel):
     founding_date: date
     capital: Decimal
 
+    class Config:
+        orm_mode = True
 
 class ShareholdingBase(BaseModel):
     company_id: int
     person_id: int
     share: Decimal
+    is_founder: bool = False
 
+    class Config:
+        orm_mode = True
 
 class CompanyCreate(CompanyBase):
     pass
-
 
 class ShareholdingCreate(ShareholdingBase):
     pass
@@ -74,8 +79,6 @@ class Person(PersonBase):
 
     class Config:
         orm_mode = True
-        from_attributes = True
-
 
 class Company(CompanyBase):
     id: int
@@ -84,8 +87,6 @@ class Company(CompanyBase):
 
     class Config:
         orm_mode = True
-        from_attributes = True
-
 
 class Shareholding(ShareholdingBase):
     id: int
@@ -94,8 +95,6 @@ class Shareholding(ShareholdingBase):
 
     class Config:
         orm_mode = True
-        from_attributes = True
-
 
 class ShareholdingWithDetails(Shareholding):
     company: Company
@@ -103,23 +102,27 @@ class ShareholdingWithDetails(Shareholding):
 
     class Config:
         orm_mode = True
-        from_attributes = True
 
-
-class PersonWithShare(Person):
-    share: Optional[Decimal] = None
+class CompanyShareholder(BaseModel):
+    id: int
+    type: PersonType
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    id_code: Optional[str] = None
+    legal_name: Optional[str] = None
+    reg_code: Optional[str] = None
+    share: Decimal
+    is_founder: Optional[bool] = False
 
     class Config:
         orm_mode = True
-        from_attributes = True
 
 
 class CompanyWithShareholders(Company):
-    shareholders: List[PersonWithShare] = []
+    shareholders: List[ShareholdingWithDetails] = []
 
     class Config:
         orm_mode = True
-        from_attributes = True
 
 
 class PersonWithShareholdings(Person):
@@ -127,4 +130,25 @@ class PersonWithShareholdings(Person):
 
     class Config:
         orm_mode = True
-        from_attributes = True
+
+class CapitalShareholderUpdate(BaseModel):
+    id: Optional[int] = None
+    type: PersonType
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    id_code: Optional[str] = None
+    legal_name: Optional[str] = None
+    reg_code: Optional[str] = None
+    share: Decimal
+    is_founder: bool
+
+    class Config:
+        orm_mode = True
+
+class CapitalIncreaseUpdate(BaseModel):
+    new_capital: Decimal
+    original_capital: Decimal
+    shareholders: List[CapitalShareholderUpdate]
+
+    class Config:
+        orm_mode = True
