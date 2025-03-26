@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, validator, constr
+from pydantic import BaseModel, Field, validator, constr, model_validator
 from typing import Optional, List
 from datetime import date, datetime
 from decimal import Decimal
@@ -7,7 +7,6 @@ from enum import Enum
 class PersonType(str, Enum):
     INDIVIDUAL = "individual"
     LEGAL = "legal"
-
 
 # Base Pydantic models
 class PersonBase(BaseModel):
@@ -45,7 +44,6 @@ class PersonCreate(PersonBase):
                 raise ValueError(f'Legal persons must have {field_name}')
         return v
 
-
 class CompanyBase(BaseModel):
     name: str
     reg_code: constr(min_length=1, max_length=7)
@@ -69,7 +67,6 @@ class CompanyCreate(CompanyBase):
 
 class ShareholdingCreate(ShareholdingBase):
     pass
-
 
 # Response models - used for returning data
 class Person(PersonBase):
@@ -117,13 +114,11 @@ class CompanyShareholder(BaseModel):
     class Config:
         orm_mode = True
 
-
 class CompanyWithShareholders(Company):
     shareholders: List[ShareholdingWithDetails] = []
 
     class Config:
         orm_mode = True
-
 
 class PersonWithShareholdings(Person):
     shareholdings: List[Shareholding] = []
@@ -149,6 +144,43 @@ class CapitalIncreaseUpdate(BaseModel):
     new_capital: Decimal
     original_capital: Decimal
     shareholders: List[CapitalShareholderUpdate]
+
+    class Config:
+        orm_mode = True
+
+class ShareholderRegistration(BaseModel):
+    id: Optional[int] = None  # if provided this person already exists
+    type: PersonType
+    # Fields for individuals:
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    id_code: Optional[str] = None
+    # Fields for legal entities:
+    legal_name: Optional[str] = None
+    reg_code: Optional[str] = None
+    share: Decimal
+
+    @model_validator(mode="after")
+    def check_required_fields(self) -> "ShareholderRegistration":
+        if self.id is None:
+            if self.type == PersonType.INDIVIDUAL:
+                if not self.first_name or not self.last_name or not self.id_code:
+                    raise ValueError("For an individual shareholder without an id, first_name, last_name, and id_code are required")
+            elif self.type == PersonType.LEGAL:
+                if not self.legal_name or not self.reg_code:
+                    raise ValueError("For a legal shareholder without an id, legal_name and reg_code are required")
+        return self
+
+    class Config:
+        orm_mode = True
+
+
+class CompanyRegistration(BaseModel):
+    name: str
+    reg_code: constr(min_length=1, max_length=7)
+    founding_date: date
+    capital: Decimal
+    shareholders: List[ShareholderRegistration]
 
     class Config:
         orm_mode = True
