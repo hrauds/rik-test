@@ -76,7 +76,6 @@ def initialize_database():
 
     try:
         existing_companies = db.query(Company).count()
-        logger.info(f"Found {existing_companies} existing companies")
         if existing_companies > 0:
             logger.info("Database already contains data. Initialization skipped.")
             return
@@ -86,7 +85,6 @@ def initialize_database():
         raise
 
     try:
-        logger.info("Creating individual persons")
         individuals = []
         for i in range(20):
             person = Person(
@@ -99,9 +97,7 @@ def initialize_database():
             )
             db.add(person)
             individuals.append(person)
-        logger.info("Created individual persons")
 
-        logger.info("Creating legal entities")
         legal_entities = []
         for i in range(10):
             entity_name = f"{random.choice(estonian_last_names)} Investeeringud"
@@ -114,12 +110,9 @@ def initialize_database():
             )
             db.add(person)
             legal_entities.append(person)
-        logger.info("Created legal entities")
 
         db.commit()
-        logger.info("Committed persons to database")
 
-        logger.info("Creating companies")
         companies = []
         for i in range(15):
             founding_year = random.randint(1990, 2023)
@@ -138,54 +131,40 @@ def initialize_database():
             )
             db.add(company)
             companies.append(company)
-        logger.info("Created companies")
 
         db.commit()
-        logger.info("Committed companies to database")
 
-        logger.info("Creating shareholdings")
         for company in companies:
-            num_shareholders = random.randint(2, 5)
+            num_shareholders = random.randint(2, 4)
+            shareholders = random.sample(individuals + legal_entities, num_shareholders)
 
-            potential_shareholders = random.sample(individuals + legal_entities, num_shareholders)
+            if company.capital % num_shareholders != 0:
+                adjusted_capital = (company.capital // num_shareholders) * num_shareholders
+                company.capital = adjusted_capital
+                db.add(company)
 
-            remaining_share = Decimal('100.00')
-            for i, shareholder in enumerate(potential_shareholders):
-                is_last = (i == len(potential_shareholders) - 1)
+            equal_share = company.capital / num_shareholders
 
-                if is_last:
-                    share = remaining_share
-                else:
-                    max_share = min(Decimal('70.00'),
-                                    remaining_share - Decimal('5.00') * (len(potential_shareholders) - i - 1))
-                    min_share = Decimal('5.00')
-                    share = Decimal(random.uniform(float(min_share), float(max_share))).quantize(Decimal('0.01'))
-                    remaining_share -= share
-
+            for i, shareholder in enumerate(shareholders):
                 is_founder = (i == 0)
 
                 shareholding = Shareholding(
                     company_id=company.id,
                     person_id=shareholder.id,
-                    share=share,
+                    share=equal_share,
                     is_founder=is_founder,
                     created_at=datetime.utcnow(),
                     updated_at=datetime.utcnow()
                 )
                 db.add(shareholding)
-        logger.info("Created shareholdings")
 
         db.commit()
-        logger.info("Committed shareholdings to database")
-        logger.info("Database initialization completed successfully")
 
     except Exception as e:
         db.rollback()
-        logger.error(f"Error during database initialization: {e}")
         raise
     finally:
         db.close()
-        logger.info("Database connection closed")
 
 
 if __name__ == "__main__":
