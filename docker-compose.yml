@@ -10,8 +10,7 @@ services:
       - INITIALIZE_DB=true  # Set to initialize the database
     command: uvicorn app.main:app --host 0.0.0.0 --port 5000 --reload
     depends_on:
-      db:
-        condition: service_healthy
+      - db
     restart: on-failure
 
   frontend:
