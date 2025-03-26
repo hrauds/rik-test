@@ -629,8 +629,8 @@ export default {
                   }
                   : {
                     id: p.id,
-                    display: `${p.name} (${p.reg_code || 'N/A'})`,
-                    name: p.name,
+                    display: `${p.legal_name} (${p.reg_code || 'N/A'})`,
+                    name: p.legal_name,
                     reg_code: p.reg_code
                   }
           )
