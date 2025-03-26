@@ -1,3 +1,4 @@
+from _pydecimal import Decimal
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Query
@@ -72,7 +73,7 @@ def get_persons(
                     )
                 elif type == 'legal':
                     query = query.filter(
-                        models.Person.name.ilike(search_term) |
+                        models.Person.legal_name.ilike(search_term) |
                         models.Person.reg_code.ilike(search_term)
                     )
                 else:
@@ -80,7 +81,7 @@ def get_persons(
                         models.Person.first_name.ilike(search_term) |
                         models.Person.last_name.ilike(search_term) |
                         models.Person.id_code.ilike(search_term) |
-                        models.Person.name.ilike(search_term) |
+                        models.Person.legal_name.ilike(search_term) |
                         models.Person.reg_code.ilike(search_term)
                     )
             except Exception as e:
@@ -397,4 +398,62 @@ def delete_shareholding(shareholding_id: int, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error deleting shareholding: {str(e)}"
+        )
+
+@router.put("/companies/{company_id}/capital_update", response_model=schemas.CompanyWithShareholders)
+def update_company_capital(company_id: int, payload: schemas.CapitalIncreaseUpdate, db: Session = Depends(get_db)):
+    try:
+        with db.begin():
+            company = db.query(models.Company).filter(models.Company.id == company_id).first()
+            if not company:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company not found")
+
+            total_shares = sum(s.share for s in payload.shareholders)
+            if total_shares != payload.newCapital:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Sum of shareholder shares does not equal the new capital"
+                )
+
+            company.capital = payload.newCapital
+
+            for s in payload.shareholders:
+                if s.id:
+                    sh = db.query(models.Shareholding).filter(
+                        models.Shareholding.id == s.id,
+                        models.Shareholding.company_id == company_id
+                    ).first()
+                    if not sh:
+                        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Shareholding not found")
+                    sh.share = s.share
+                else:
+                    if s.type == schemas.PersonType.INDIVIDUAL:
+                        new_person = models.Person(
+                            type=s.type.value,
+                            first_name=s.firstName,
+                            last_name=s.lastName,
+                            id_code=s.idCode
+                        )
+                    else:
+                        new_person = models.Person(
+                            type=s.type.value,
+                            legal_name=s.legalName,
+                            reg_code=s.legalCode
+                        )
+                    db.add(new_person)
+                    db.flush()
+                    new_sh = models.Shareholding(
+                        company_id=company_id,
+                        person_id=new_person.id,
+                        share=s.share
+                    )
+                    db.add(new_sh)
+            db.refresh(company)
+        return company
+    except Exception as e:
+        db.rollback()
+        logger.error(traceback.format_exc())
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error updating company capital: {str(e)}"
         )
