@@ -544,3 +544,57 @@ def update_company_capital(company_id: int, payload: schemas.CapitalIncreaseUpda
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error updating company capital: {str(e)}"
         )
+
+@router.post("/companies/registration", response_model=schemas.CompanyWithShareholders, status_code=status.HTTP_201_CREATED)
+def register_company(registration: schemas.CompanyRegistration, db: Session = Depends(get_db)):
+    try:
+        with db.begin():
+            company_data = {
+                "name": registration.name,
+                "reg_code": registration.reg_code,
+                "founding_date": registration.founding_date,
+                "capital": registration.capital
+            }
+            db_company = models.Company(**company_data)
+            db.add(db_company)
+            db.flush()
+
+            for sh in registration.shareholders:
+                if sh.id:
+                    # Use the existing person id
+                    person_id = sh.id
+                else:
+                    # Create new person
+                    if sh.type == schemas.PersonType.INDIVIDUAL:
+                        person_data = {
+                            "type": sh.type.value,
+                            "first_name": sh.first_name,
+                            "last_name": sh.last_name,
+                            "id_code": sh.id_code
+                        }
+                    else:
+                        person_data = {
+                            "type": sh.type.value,
+                            "legal_name": sh.legal_name,
+                            "reg_code": sh.reg_code
+                        }
+                    db_person = models.Person(**person_data)
+                    db.add(db_person)
+                    db.flush()
+                    person_id = db_person.id
+
+                db_shareholding = models.Shareholding(
+                    company_id=db_company.id,
+                    person_id=person_id,
+                    share=sh.share,
+                    is_founder=True
+                )
+                db.add(db_shareholding)
+        db.refresh(db_company)
+        return db_company
+    except Exception as e:
+        logger.error(traceback.format_exc())
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error registering company: {str(e)}"
+        )
