@@ -2,14 +2,25 @@ services:
   api:
     build: ./backend
     ports:
-      - "8000:8000"
-    depends_on:
-      - db
+      - "5000:5000"
     volumes:
       - ./backend:/app
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/company_db
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+      - INITIALIZE_DB=true  # Set to initialize the database
+    command: uvicorn app.main:app --host 0.0.0.0 --port 5000 --reload
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: on-failure
+
+  frontend:
+    build: ./frontend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "8080:8080"
 
   db:
     image: postgres:14
@@ -21,19 +32,11 @@ services:
       - POSTGRES_DB=company_db
     ports:
       - "5432:5432"
-
-  frontend:
-    build: ./frontend
-    ports:
-      - "8080:8080"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    depends_on:
-      - api
-    environment:
-      - VUE_APP_API_URL=http://localhost:8000
-    command: npm run serve -- --port 8080 --host 0.0.0.0
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d company_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:
