@@ -1,13 +1,14 @@
-from _pydecimal import Decimal
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
+
 from typing import List, Optional
 import traceback
 
 from app.database import get_db
 from app import models, schemas
+
 
 import logging
 
@@ -190,43 +191,127 @@ def create_company(company: schemas.CompanyCreate, db: Session = Depends(get_db)
         )
 
 
-@router.get("/companies/", response_model=List[schemas.Company])
-def list_companies(
-        skip: int = 0,
-        limit: int = 100,
-        name: Optional[str] = None,
-        founded_after: Optional[date] = None,
-        db: Session = Depends(get_db)
-):
+@router.get("/companies/", response_model=List[schemas.CompanyWithShareholders])
+def list_companies(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     try:
-        query = db.query(models.Company)
+        companies = (
+            db.query(models.Company)
+            .options(
+                joinedload(models.Company.shareholdings).joinedload(models.Shareholding.person)
+            )
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
 
-        if name:
-            query = query.filter(models.Company.name.ilike(f"%{name}%"))
-        if founded_after:
-            query = query.filter(models.Company.founding_date >= founded_after)
+        response_data = []
+        for company in companies:
+            company_data = schemas.CompanyWithShareholders(
+                id=company.id,
+                name=company.name,
+                reg_code=company.reg_code,
+                founding_date=company.founding_date,
+                capital=company.capital,
+                created_at=company.created_at,
+                updated_at=company.updated_at,
+                shareholders=[
+                    schemas.ShareholdingWithDetails(
+                        id=sh.id,
+                        company_id=sh.company_id,
+                        person_id=sh.person_id,
+                        share=sh.share,
+                        created_at=sh.created_at,
+                        updated_at=sh.updated_at,
 
-        companies = query.offset(skip).limit(limit).all()
-        return companies
+                        company=schemas.Company(
+                            id=company.id,
+                            name=company.name,
+                            reg_code=company.reg_code,
+                            founding_date=company.founding_date,
+                            capital=company.capital,
+                            created_at=company.created_at,
+                            updated_at=company.updated_at,
+                        ),
+                        person=schemas.Person(
+                            id=sh.person.id,
+                            type=sh.person.type.value if hasattr(sh.person.type, "value") else sh.person.type,
+                            first_name=sh.person.first_name,
+                            last_name=sh.person.last_name,
+                            id_code=sh.person.id_code,
+                            legal_name=sh.person.legal_name,
+                            reg_code=sh.person.reg_code,
+                            created_at=sh.person.created_at,
+                            updated_at=sh.person.updated_at,
+                        )
+                    )
+                    for sh in company.shareholdings
+                ]
+            )
+            response_data.append(company_data)
+        return response_data
     except Exception as e:
-        logger.error(f"Error retrieving companies: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error retrieving companies: {str(e)}"
         )
 
 
+
 @router.get("/companies/{company_id}", response_model=schemas.CompanyWithShareholders)
 def get_company(company_id: int, db: Session = Depends(get_db)):
     try:
-        db_company = db.query(models.Company).filter(models.Company.id == company_id).first()
+        db_company = (
+            db.query(models.Company)
+            .options(joinedload(models.Company.shareholdings).joinedload(models.Shareholding.person))
+            .filter(models.Company.id == company_id)
+            .first()
+        )
         if db_company is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company not found")
-        return db_company
-    except HTTPException:
-        raise
+
+        company_data = schemas.CompanyWithShareholders(
+            id=db_company.id,
+            name=db_company.name,
+            reg_code=db_company.reg_code,
+            founding_date=db_company.founding_date,
+            capital=db_company.capital,
+            created_at=db_company.created_at,
+            updated_at=db_company.updated_at,
+            shareholders=[
+                schemas.ShareholdingWithDetails(
+                    id=sh.id,
+                    company_id=sh.company_id,
+                    person_id=sh.person_id,
+                    share=sh.share,
+                    is_founder=sh.is_founder,
+                    created_at=sh.created_at,
+                    updated_at=sh.updated_at,
+                    company=schemas.Company(
+                        id=db_company.id,
+                        name=db_company.name,
+                        reg_code=db_company.reg_code,
+                        founding_date=db_company.founding_date,
+                        capital=db_company.capital,
+                        created_at=db_company.created_at,
+                        updated_at=db_company.updated_at,
+                    ),
+                    person=schemas.Person(
+                        id=sh.person.id,
+                        type=sh.person.type.value if hasattr(sh.person.type, "value") else sh.person.type,
+                        first_name=sh.person.first_name,
+                        last_name=sh.person.last_name,
+                        id_code=sh.person.id_code,
+                        legal_name=sh.person.legal_name,
+                        reg_code=sh.person.reg_code,
+                        created_at=sh.person.created_at,
+                        updated_at=sh.person.updated_at,
+                    )
+                )
+                for sh in db_company.shareholdings
+            ]
+        )
+        return company_data
     except Exception as e:
-        logger.error(f"Error retrieving company {company_id}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error retrieving company: {str(e)}"
@@ -409,13 +494,13 @@ def update_company_capital(company_id: int, payload: schemas.CapitalIncreaseUpda
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company not found")
 
             total_shares = sum(s.share for s in payload.shareholders)
-            if total_shares != payload.newCapital:
+            if total_shares != payload.new_capital:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Sum of shareholder shares does not equal the new capital"
                 )
 
-            company.capital = payload.newCapital
+            company.capital = payload.new_capital
 
             for s in payload.shareholders:
                 if s.id:
@@ -426,26 +511,28 @@ def update_company_capital(company_id: int, payload: schemas.CapitalIncreaseUpda
                     if not sh:
                         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Shareholding not found")
                     sh.share = s.share
+                    sh.is_founder = s.is_founder
                 else:
                     if s.type == schemas.PersonType.INDIVIDUAL:
                         new_person = models.Person(
                             type=s.type.value,
-                            first_name=s.firstName,
-                            last_name=s.lastName,
-                            id_code=s.idCode
+                            first_name=s.first_name,
+                            last_name=s.last_name,
+                            id_code=s.id_code
                         )
                     else:
                         new_person = models.Person(
                             type=s.type.value,
-                            legal_name=s.legalName,
-                            reg_code=s.legalCode
+                            legal_name=s.legal_name,
+                            reg_code=s.reg_code
                         )
                     db.add(new_person)
                     db.flush()
                     new_sh = models.Shareholding(
                         company_id=company_id,
                         person_id=new_person.id,
-                        share=s.share
+                        share=s.share,
+                        is_founder=s.is_founder
                     )
                     db.add(new_sh)
             db.refresh(company)
