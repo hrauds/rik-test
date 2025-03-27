@@ -20,22 +20,23 @@
         <div class="shadow-sm rounded bg-white p-4">
           <div class="mb-4">
             <h2 class="h5 mb-3">Põhiandmed</h2>
-            <dl class="row">
-              <dt class="col-sm-2">Nimi:</dt>
-              <dd class="col-sm-9">{{ company.name }}</dd>
-
-              <dt class="col-sm-2">Registrikood:</dt>
-              <dd class="col-sm-9">{{ company.reg_code }}</dd>
-
-              <dt class="col-sm-2">Asutamiskuupäev:</dt>
-              <dd class="col-sm-9">{{ formatDate(company.founding_date) }}</dd>
-
-              <dt class="col-sm-2">Kogukapital:</dt>
-              <dd class="col-sm-9">{{ company.capital }} €</dd>
-
-              <dt class="col-sm-2">Osanike arv:</dt>
-              <dd class="col-sm-9">{{ shareholders.length }}</dd>
-            </dl>
+            <div class="row">
+              <div class="col-12 mb-2">
+                <strong>Nimi:</strong> {{ company.name }}
+              </div>
+              <div class="col-12 mb-2">
+                <strong>Registrikood:</strong> {{ company.reg_code }}
+              </div>
+              <div class="col-12 mb-2">
+                <strong>Asutamiskuupäev:</strong> {{ formatDate(company.founding_date) }}
+              </div>
+              <div class="col-12 mb-2">
+                <strong>Kogukapital:</strong> {{ company.capital }} €
+              </div>
+              <div class="col-12 mb-2">
+                <strong>Osanike arv:</strong> {{ shareholders.length }}
+              </div>
+            </div>
           </div>
 
           <div>
