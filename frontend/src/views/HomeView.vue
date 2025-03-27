@@ -132,22 +132,23 @@ export default {
 
         } else {
           if (!company.shareholders || company.shareholders.length === 0) return false
-          return company.shareholders.some(sh => {
 
+          return company.shareholders.some(sh => {
             if (sh.person && sh.person.type === 'individual') {
               const fullName = `${sh.person.first_name} ${sh.person.last_name}`.toLowerCase()
               const idCode = (sh.person.id_code || '').toLowerCase()
-              return fullName.includes(query) || idCode.includes(query)
+              const combined = `${fullName} ${idCode}`
+
+              return query.split(' ').every(token => combined.includes(token))
             } else if (sh.person) {
               const legalInfo = `${sh.person.legal_name} ${sh.person.reg_code}`.toLowerCase()
-              return legalInfo.includes(query)
+              return query.split(' ').every(token => legalInfo.includes(token))
             }
             return false
           })
         }
       })
     },
-
     viewCompany(id) {
       if (id) {
         this.$router.push(`/company/${id}`)
