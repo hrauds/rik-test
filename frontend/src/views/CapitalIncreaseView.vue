@@ -74,13 +74,24 @@
               {{ errors.shareholders }}
             </div>
 
-            <!-- Get shareholders -->
             <div v-for="(sh, index) in shareholders" :key="index" class="mb-4 p-3 border rounded shadow-sm">
               <div class="d-flex justify-content-between align-items-center mb-3">
                 <p><strong>Osanik:</strong> <strong>{{ getShareholderLabel(sh, index) }}</strong></p>
                 <button v-if="!sh.original" type="button" class="btn btn-danger" @click="removeShareholder(index)">
                   <i class="bi bi-trash me-1"></i> Kustuta
                 </button>
+              </div>
+
+              <div v-if="!sh.original" class="mb-3">
+                <label class="form-label d-block">Osaniku tüüp<span class="text-danger">*</span></label>
+                <div class="btn-group" role="group">
+                  <input type="radio" class="btn-check" :name="'shareholderType' + index" :id="'individual' + index"
+                         value="individual" v-model="sh.type">
+                  <label class="btn btn-outline-primary" :for="'individual' + index">Füüsiline isik</label>
+                  <input type="radio" class="btn-check" :name="'shareholderType' + index" :id="'legal' + index"
+                         value="legal" v-model="sh.type">
+                  <label class="btn btn-outline-primary" :for="'legal' + index">Juriidiline isik</label>
+                </div>
               </div>
 
               <div v-if="!sh.original" class="mb-3">
@@ -104,39 +115,19 @@
                 </div>
               </div>
 
-              <div v-if="!sh.original" class="mb-3">
-                <label class="form-label d-block">
-                  Osaniku tüüp<span class="text-danger">*</span>
-                </label>
-                <div class="btn-group" role="group">
-                  <input type="radio" class="btn-check" :name="'shareholderType' + index" :id="'individual' + index"
-                         value="individual" v-model="sh.type">
-                  <label class="btn btn-outline-primary" :for="'individual' + index">Füüsiline isik</label>
-                  <input type="radio" class="btn-check" :name="'shareholderType' + index" :id="'legal' + index"
-                         value="legal" v-model="sh.type">
-                  <label class="btn btn-outline-primary" :for="'legal' + index">Juriidiline isik</label>
-                </div>
-              </div>
-
               <!-- Editable fields for individuals -->
               <div v-if="sh.type === 'individual' && !sh.original" class="mb-3">
                 <div class="row">
                   <div class="col-md-4 mb-3">
-                    <label :for="'firstName' + index" class="form-label">
-                      Eesnimi<span class="text-danger">*</span>
-                    </label>
+                    <label :for="'firstName' + index" class="form-label">Eesnimi<span class="text-danger">*</span></label>
                     <input type="text" class="form-control" :id="'firstName' + index" v-model="sh.firstName" required>
                   </div>
                   <div class="col-md-4 mb-3">
-                    <label :for="'lastName' + index" class="form-label">
-                      Perenimi<span class="text-danger">*</span>
-                    </label>
+                    <label :for="'lastName' + index" class="form-label">Perenimi<span class="text-danger">*</span></label>
                     <input type="text" class="form-control" :id="'lastName' + index" v-model="sh.lastName" required>
                   </div>
                   <div class="col-md-4 mb-3">
-                    <label :for="'idCode' + index" class="form-label">
-                      Isikukood<span class="text-danger">*</span>
-                    </label>
+                    <label :for="'idCode' + index" class="form-label">Isikukood<span class="text-danger">*</span></label>
                     <input type="text" class="form-control" :id="'idCode' + index" v-model="sh.idCode" required>
                   </div>
                 </div>
@@ -146,15 +137,11 @@
               <div v-if="sh.type === 'legal' && !sh.original" class="mb-3">
                 <div class="row">
                   <div class="col-md-6 mb-3">
-                    <label :for="'legalName' + index" class="form-label">
-                      Ettevõtte nimi<span class="text-danger">*</span>
-                    </label>
+                    <label :for="'legalName' + index" class="form-label">Ettevõtte nimi<span class="text-danger">*</span></label>
                     <input type="text" class="form-control" :id="'legalName' + index" v-model="sh.legalName" required>
                   </div>
                   <div class="col-md-6 mb-3">
-                    <label :for="'legalCode' + index" class="form-label">
-                      Registrikood<span class="text-danger">*</span>
-                    </label>
+                    <label :for="'legalCode' + index" class="form-label">Registrikood<span class="text-danger">*</span></label>
                     <input type="text" class="form-control" :id="'legalCode' + index" v-model="sh.legalCode" required>
                   </div>
                 </div>
@@ -177,9 +164,7 @@
                   <input type="number" class="form-control" :id="'originalShare' + index" :value="sh.originalShare || 0" disabled>
                 </div>
                 <div class="col-md-6 mb-3">
-                  <label :for="'share' + index" class="form-label">
-                    Uus osalus (€)<span class="text-danger">*</span>
-                  </label>
+                  <label :for="'share' + index" class="form-label">Uus osalus (€)<span class="text-danger">*</span></label>
                   <input type="number" class="form-control" :id="'share' + index" v-model.number="sh.share"
                          :class="{ 'is-invalid': errors['share' + index] }" min="1" placeholder="Vähemalt 1€" required>
                   <div v-if="errors['share' + index]" class="invalid-feedback">
@@ -189,10 +174,9 @@
               </div>
             </div>
 
+            <!-- Form buttons -->
             <div class="text-end mt-4">
-              <button type="button" class="btn btn-secondary me-2" @click="navigateToCompany">
-                Tühista
-              </button>
+              <button type="button" class="btn btn-secondary me-2" @click="navigateToCompany">Tühista</button>
               <button type="submit" class="btn btn-primary" :disabled="!isFormValid || submitting">
                 <span v-if="submitting">
                   <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
@@ -329,7 +313,7 @@ export default {
               legalName: person.legal_name || '',
               legalCode: person.reg_code || '',
               share: sh.share,
-              isFounder: sh.isFounder || false,
+              isFounder: sh.is_founder || false,
               original: true,
               originalShare: Number(sh.share),
               searchQuery: '',
@@ -372,7 +356,7 @@ export default {
               : {
                   id: p.id,
                   display: `${p.legal_name} (${p.reg_code || 'N/A'})`,
-                  name: p.legal_name,
+                  legal_name: p.legal_name,
                   reg_code: p.reg_code
                 }
           )
@@ -403,7 +387,9 @@ export default {
       }
       shareholder.searchQuery = person.display
       shareholder.searchResults = []
+      shareholder.searchPerformed = false
     },
+
     validateForm() {
       this.errors = {}
       let isValid = true
@@ -457,18 +443,18 @@ export default {
       const companyId = this.company.id
 
       const payload = {
-        newCapital: this.company.capital,
-        originalCapital: this.originalCapital,
+        new_capital: String(this.company.capital),
+        original_capital: String(this.originalCapital),
         shareholders: this.shareholders.map(s => ({
           id: s.original ? s.id : null,
           type: s.type,
-          firstName: s.type === 'individual' ? s.firstName : null,
-          lastName: s.type === 'individual' ? s.lastName : null,
-          idCode: s.type === 'individual' ? s.idCode : null,
-          legalName: s.type === 'legal' ? s.legalName : null,
-          legalCode: s.type === 'legal' ? s.legalCode : null,
-          share: s.share,
-          isFounder: s.isFounder
+          first_name: s.type === 'individual' ? s.firstName : null,
+          last_name: s.type === 'individual' ? s.lastName : null,
+          id_code: s.type === 'individual' ? s.idCode : null,
+          legal_name: s.type === 'legal' ? s.legalName : null,
+          reg_code: s.type === 'legal' ? s.legalCode : null,
+          share: String(s.share),
+          is_founder: s.isFounder
         }))
       }
 
