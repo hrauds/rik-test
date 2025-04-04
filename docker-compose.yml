@@ -16,9 +16,11 @@ services:
   frontend:
     build: ./frontend
     volumes:
-      - ./frontend:/app
+      - ./frontend:/app:cached
+      - node_modules:/app/node_modules
     ports:
       - "8080:8080"
+    restart: on-failure
 
   db:
     image: postgres:14
@@ -33,3 +35,4 @@ services:
 
 volumes:
   postgres_data:
+  node_modules:
